@@ -16,6 +16,11 @@ PADDLE_LEFT_Y=$(((H - PADDLE_HEIGHT) / 2))
 PADDLE_RIGHT_X=0
 PADDLE_RIGHT_Y=$((PADDLE_LEFT_Y))
 
+BALL_DIMENSION=2
+
+BALL_X=5
+BALL_Y=20
+
 clear
 tput civis
 
@@ -54,14 +59,28 @@ draw_right_paddle() {
   done
 }
 
-declare -a BALL
 draw_ball() {
-  grid[348]=1
-  grid[349]=1
+  for ((i = 0; i < BALL_DIMENSION; i++)); do
+    grid[$((BALL_Y * W + BALL_X)) + i]=1
+  done
+}
+
+move_ball() {
+  # need to remove previous ball
+  BALL_X=$((BALL_X + 2))
 }
 
 game_loop() {
   render
+  move_ball
+  while read -r action char; do
+    case "$action" in
+    tick) ;;
+    input) ;;
+    esac
+    echo -ne '\x1B[1;1H'
+    render
+  done
 }
 
 input_task() {
