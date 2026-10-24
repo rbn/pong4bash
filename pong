@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+# game board
+W=81
+H=31
+HALFHEIGHT=$((H / 2))
+MAXHEIGHT=$((H - 1))
+MAX=$((W * H - 1))
+NET=$((W / 2))
+
+# paddle
+PADDLE_HEIGHT=6
+PADDLE_LEFT_X=0
+PADDLE_LEFT_Y=$(((H - PADDLE_HEIGHT) / 2))
+
+PADDLE_RIGHT_X=0
+PADDLE_RIGHT_Y=$((PADDLE_LEFT_Y))
+
+clear
+tput civis
+
+declare -a grid
+
+render() {
+  draw_left_paddle
+  draw_right_paddle
+  draw_ball
+  local r c color
+  for ((r = 0; r < H; r++)); do
+    for ((c = 0; c < W; c++)); do
+      color=${grid[r * W + c]:-0}
+      ((c == $NET && r % 2 == 0)) && color=2
+      ((r == 0 || r == $MAXHEIGHT)) && color=1
+      case "$color" in
+      0) printf "%s\x1B[30m" ;;&
+      1) printf "%s\x1B[37m" ;;&
+      2) printf "%s\x1B[37m" ;;&
+      *) printf "%s\x1B[0m" $'\u2588' ;;
+      esac
+    done
+    printf '\n'
+  done
+}
+
+draw_left_paddle() {
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_LEFT_Y + i) * W] = 1))
+  done
+}
+
+draw_right_paddle() {
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_RIGHT_Y + i) * W + (W - 1)] = 1))
+  done
+}
+
+declare -a BALL
+draw_ball() {
+  grid[348]=1
+  grid[349]=1
+}
+
+game_loop() {
+  render
+}
+
+input_task() {
+  local char
+  while read -rsn1 char; do
+    echo "input $char"
+  done
+}
+tick_task() {
+  while true; do
+    sleep 0.5
+    echo tick
+  done
+}
+
+game_dir=$(mktemp -d) || exit 1
+game_pipe="$game_dir/events"
+
+cleanup() {
+  trap '' INT TERM
+
+  #Stop background tasks, then wait for them to finish
+  [[ -n "$input_pid" ]] && kill "$input_pid" 2>/dev/null
+  [[ -n "$tick_pid" ]] && kill "$tick_pid" 2>/dev/null
+
+  [[ -n "$input_pid" ]] && wait "$input_pid" 2>/dev/null
+  [[ -n "$input_pid" ]] && wait "$input_pid" 2>/dev/null
+
+  rm -f "$game_pipe"
+  rmdir "$game_dir"
+
+  printf '\x1B[0m'
+  tput cnorm
+
+}
+
+input_id=
+tick_pid=
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+mkfifo "$game_pipe" || exit 1
+
+input_task </dev/tty >"$game_pipe" &
+input_pid=$!
+
+tick_task >$game_pipe &
+tick_pid=$!
+
+game_loop <"$game_pipe"

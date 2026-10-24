@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+
+greet() {
+  local name=$1
+  echo "hello $name"
+}
+
+for name in "$@"; do
+  echo "you entered $name"
+done
+
+echo "name outside of function or for $name"
