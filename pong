@@ -16,10 +16,12 @@ PADDLE_LEFT_Y=$(((H - PADDLE_HEIGHT) / 2))
 PADDLE_RIGHT_X=0
 PADDLE_RIGHT_Y=$((PADDLE_LEFT_Y))
 
-BALL_DIMENSION=2
-
 BALL_X=5
 BALL_Y=20
+
+# delta of ball movement
+BX=1
+BY=1
 
 clear
 tput civis
@@ -34,12 +36,13 @@ render() {
   for ((r = 0; r < H; r++)); do
     for ((c = 0; c < W; c++)); do
       color=${grid[r * W + c]:-0}
-      ((c == $NET && r % 2 == 0)) && color=2
+      ((c == $NET)) && color=3
       ((r == 0 || r == $MAXHEIGHT)) && color=1
       case "$color" in
       0) printf "%s\x1B[30m" ;;&
       1) printf "%s\x1B[37m" ;;&
       2) printf "%s\x1B[37m" ;;&
+      3) printf "%s\x1B[37;40m\u25A0\x1B[0m" ;;
       *) printf "%s\x1B[0m" $'\u2588' ;;
       esac
     done
@@ -60,22 +63,31 @@ draw_right_paddle() {
 }
 
 draw_ball() {
-  for ((i = 0; i < BALL_DIMENSION; i++)); do
-    grid[$((BALL_Y * W + BALL_X)) + i]=1
-  done
+  grid[$((BALL_Y * W + BALL_X))]=3
 }
 
 move_ball() {
-  # need to remove previous ball
-  BALL_X=$((BALL_X + 2))
+  # erase existing ball
+  grid[$((BALL_Y * W + BALL_X))]=0
+
+  # draw new ball
+  [[ $BALL_X -eq 1 ]] && BX=$((-BX))
+  [[ $BALL_Y -eq 1 ]] && BY=1
+  [[ $BALL_X -eq $((W - 2)) ]] && BX=$((-BX))
+  [[ $BALL_Y -eq $((H - 2)) ]] && BY=-1
+
+  BALL_X=$((BALL_X + BX))
+  BALL_Y=$((BALL_Y + BY))
 }
 
 game_loop() {
   render
-  move_ball
   while read -r action char; do
     case "$action" in
-    tick) ;;
+    tick)
+      move_ball
+      draw_ball
+      ;;
     input) ;;
     esac
     echo -ne '\x1B[1;1H'
@@ -89,9 +101,10 @@ input_task() {
     echo "input $char"
   done
 }
+
 tick_task() {
   while true; do
-    sleep 0.5
+    sleep 0.05
     echo tick
   done
 }
