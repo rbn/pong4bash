@@ -62,6 +62,42 @@ draw_right_paddle() {
   done
 }
 
+left_paddle_up() {
+  # remove former paddle
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_LEFT_Y + i) * W] = 0))
+  done
+  # move
+  [[ $PADDLE_LEFT_Y -gt 0 ]] && ((PADDLE_LEFT_Y -= 1))
+}
+
+left_paddle_down() {
+  # remove former paddle
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_LEFT_Y + i) * W] = 0))
+  done
+  # move
+  [[ $PADDLE_LEFT_Y -lt $((MAXHEIGHT - PADDLE_HEIGHT)) ]] && ((PADDLE_LEFT_Y += 1))
+}
+
+right_paddle_up() {
+  # remove former paddle
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_RIGHT_Y + i) * W + (W - 1)] = 0))
+  done
+  # move
+  [[ $PADDLE_RIGHT_Y -gt 1 ]] && ((PADDLE_RIGHT_Y -= 1))
+}
+
+right_paddle_down() {
+  # remove former paddle
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    ((grid[(PADDLE_RIGHT_Y + i) * W + (W - 1)] = 0))
+  done
+  # move
+  [[ $PADDLE_RIGHT_Y -lt $((MAXHEIGHT - PADDLE_HEIGHT)) ]] && ((PADDLE_RIGHT_Y += 1))
+}
+
 draw_ball() {
   grid[$((BALL_Y * W + BALL_X))]=3
 }
@@ -96,7 +132,12 @@ game_loop() {
       ((tick_count == 0)) && move_ball_y
       draw_ball
       ;;
-    input) ;;
+    input)
+      [[ "$char" == "q" ]] && left_paddle_up
+      [[ "$char" == "a" ]] && left_paddle_down
+      [[ "$char" == "w" ]] && right_paddle_up
+      [[ "$char" == "s" ]] && right_paddle_down
+      ;;
     esac
     echo -ne '\x1B[1;1H'
     render
@@ -112,7 +153,7 @@ input_task() {
 
 tick_task() {
   while true; do
-    sleep 0.025
+    sleep 0.5
     echo tick
   done
 }
