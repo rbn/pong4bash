@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# TODO:
+# ESC key exit
+
 # game board
 W=81
 H=31
@@ -21,6 +24,11 @@ BALL_Y=20
 
 # delta of ball movement
 BX=1
+
+# game admin
+GAME_OVER=false
+DEBUG=false
+
 BY=1
 
 clear
@@ -106,8 +114,15 @@ move_ball_x() {
   # erase existing ball - x always gets called
   grid[$((BALL_Y * W + BALL_X))]=0
 
-  # draw new ball
-  [[ $BALL_X -eq 1 ]] && BX=$((-BX))
+  # set new ball coords
+  if [[ $BALL_X -eq 1 ]]; then
+    if left_paddle_block; then
+      BX=$((-BX))
+    else
+      GAME_OVER=true
+    fi
+  fi
+
   [[ $BALL_X -eq $((W - 2)) ]] && BX=$((-BX))
 
   BALL_X=$((BALL_X + BX))
@@ -121,16 +136,36 @@ move_ball_y() {
   BALL_Y=$((BALL_Y + BY))
 }
 
+left_paddle_block() {
+  local paddle_hit=0
+  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
+    [[ $((((PADDLE_LEFT_Y + i)) * W)) -eq $BALL_Y ]] && paddle_hit=1
+  done
+
+  if [[ $paddle_hit -eq 1 ]]; then
+    return 0
+  fi
+
+  return 1
+
+}
+
 game_loop() {
+  if [[ $1 == "-d" ]]; then
+    DEBUG=true
+    touch /tmp/pong-debug.log
+  fi
   render
   local tick_count=0
   while read -r action char; do
+    [[ "$GAME_OVER" == "true" ]] && continue
     case "$action" in
     tick)
       tick_count=$(((tick_count + 1) % 3))
       move_ball_x
       ((tick_count == 0)) && move_ball_y
       draw_ball
+      log "Ball position: $BALL_X, $BALL_Y"
       ;;
     input)
       [[ "$char" == "q" ]] && left_paddle_up
@@ -140,6 +175,7 @@ game_loop() {
       ;;
     esac
     echo -ne '\x1B[1;1H'
+    game_count=$((game_count + 1))
     render
   done
 }
@@ -153,7 +189,7 @@ input_task() {
 
 tick_task() {
   while true; do
-    sleep 0.5
+    sleep 0.03
     echo tick
   done
 }
@@ -180,6 +216,14 @@ cleanup() {
 
 }
 
+# custom debug print (bash command: tail -f /tmp/pong-debug.log)
+log() {
+  if $DEBUG; then
+    local output=$1
+    printf '%s\n' "$output" >>/tmp/pong-debug.log
+  fi
+}
+
 input_id=
 tick_pid=
 
@@ -195,4 +239,4 @@ input_pid=$!
 tick_task >$game_pipe &
 tick_pid=$!
 
-game_loop <"$game_pipe"
+game_loop "$@" <"$game_pipe"
