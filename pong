@@ -1,40 +1,43 @@
 #!/usr/bin/env bash
 
-# TODO:
-# ESC key exit
-
-# game board
-W=81
-H=31
-HALFHEIGHT=$((H / 2))
-MAXHEIGHT=$((H - 1))
-MAX=$((W * H - 1))
-NET=$((W / 2))
-
-# paddle
-PADDLE_HEIGHT=6
-PADDLE_LEFT_X=0
-PADDLE_LEFT_Y=$(((H - PADDLE_HEIGHT) / 2))
-
-PADDLE_RIGHT_X=0
-PADDLE_RIGHT_Y=$((PADDLE_LEFT_Y))
-
-BALL_X=5
-BALL_Y=20
-
-# delta of ball movement
-BX=1
-
-# game admin
-GAME_OVER=false
-DEBUG=false
-
-BY=1
-
-clear
-tput civis
-
 declare -a grid
+
+init_globals() {
+
+  # game board
+  grid=()
+  W=81
+  H=31
+  HALFHEIGHT=$((H / 2))
+  MAXHEIGHT=$((H - 1))
+  MAX=$((W * H - 1))
+  NET=$((W / 2))
+
+  # paddle
+  PADDLE_HEIGHT=6
+  PADDLE_LEFT_X=0
+  PADDLE_LEFT_Y=$(((H - PADDLE_HEIGHT) / 2))
+
+  PADDLE_RIGHT_X=0
+  PADDLE_RIGHT_Y=$((PADDLE_LEFT_Y))
+
+  BALL_X=5
+  BALL_Y=15
+
+  # delta of ball movement
+  BX=-1
+  BY=1
+
+  # game admin
+  GAME_OVER=false
+  PAUSE=0
+  DEBUG=false
+  DEBUG_FILE="/tmp/pong-debug.log"
+
+  clear
+  tput civis
+
+}
 
 render() {
   draw_left_paddle
@@ -56,6 +59,9 @@ render() {
     done
     printf '\n'
   done
+  echo "q/a => left paddle  w/s => right paddle"
+  echo "esc: quit    spacebar: pause    r: restart"
+  echo "Happy ponging!"
 }
 
 draw_left_paddle() {
@@ -137,35 +143,40 @@ move_ball_y() {
 }
 
 left_paddle_block() {
-  local paddle_hit=0
-  for ((i = 0; i < PADDLE_HEIGHT; i++)); do
-    [[ $((((PADDLE_LEFT_Y + i)) * W)) -eq $BALL_Y ]] && paddle_hit=1
-  done
+  ((BALL_Y >= PADDLE_LEFT_Y && \
+  BALL_Y < PADDLE_LEFT_Y + PADDLE_HEIGHT))
+}
 
-  if [[ $paddle_hit -eq 1 ]]; then
-    return 0
-  fi
+right_paddle_block() {
+  ((BALL_Y >= PADDLE_RIGHT_Y && \
+  BALL_Y < PADDLE_RIGHT_Y + PADDLE_HEIGHT))
+}
 
-  return 1
-
+restart() {
+  init_globals
 }
 
 game_loop() {
+  init_globals
   if [[ $1 == "-d" ]]; then
     DEBUG=true
-    touch /tmp/pong-debug.log
+    touch DEBUG_FILE
   fi
+
   render
   local tick_count=0
   while read -r action char; do
+    [[ "$char" == "escape" ]] && exit 0
+    [[ "$char" == "space" ]] && PAUSE=$((!PAUSE))
+    [[ "$char" == "restart" ]] && restart
     [[ "$GAME_OVER" == "true" ]] && continue
+    [[ "$PAUSE" -eq 1 ]] && continue
     case "$action" in
     tick)
       tick_count=$(((tick_count + 1) % 3))
       move_ball_x
       ((tick_count == 0)) && move_ball_y
       draw_ball
-      log "Ball position: $BALL_X, $BALL_Y"
       ;;
     input)
       [[ "$char" == "q" ]] && left_paddle_up
@@ -182,14 +193,19 @@ game_loop() {
 
 input_task() {
   local char
-  while read -rsn1 char; do
-    echo "input $char"
+  while IFS= read -rsn1 char; do
+    case "$char" in
+    $'\e') echo "input escape" ;; # ESC pressed
+    ' ') echo "input space" ;;
+    'r') echo "input restart" ;;
+    *) echo "input $char" ;;
+    esac
   done
 }
 
 tick_task() {
   while true; do
-    sleep 0.03
+    sleep 0.1
     echo tick
   done
 }
