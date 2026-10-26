@@ -168,7 +168,7 @@ game_loop() {
   init_globals
   if [[ $1 == "-d" ]]; then
     DEBUG=true
-    touch DEBUG_FILE
+    touch $DEBUG_FILE
   fi
 
   render
