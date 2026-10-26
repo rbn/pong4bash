@@ -120,6 +120,7 @@ move_ball_x() {
   # erase existing ball - x always gets called
   grid[$((BALL_Y * W + BALL_X))]=0
 
+  log "BALL_X BALL_Y $BALL_X $BALL_Y"
   # set new ball coords
   if [[ $BALL_X -eq 1 ]]; then
     if left_paddle_block; then
@@ -127,9 +128,14 @@ move_ball_x() {
     else
       GAME_OVER=true
     fi
+  elif [[ $BALL_X -eq $((W - 2)) ]]; then
+    log "(elif) BALL_X BALL_Y $BALL_X $BALL_Y"
+    if right_paddle_block; then
+      BX=$((-BX))
+    else
+      GAME_OVER=true
+    fi
   fi
-
-  [[ $BALL_X -eq $((W - 2)) ]] && BX=$((-BX))
 
   BALL_X=$((BALL_X + BX))
 }
@@ -148,6 +154,8 @@ left_paddle_block() {
 }
 
 right_paddle_block() {
+  log "PADDLE_RIGHT_Y BALL_Y $PADDLE_RIGHT_Y $BALL_Y"
+  log "PADDLE_RIGHT_Y PADDLE_HEIGHT $PADDLE_RIGHT_Y $PADDLE_HEIGHT"
   ((BALL_Y >= PADDLE_RIGHT_Y && \
   BALL_Y < PADDLE_RIGHT_Y + PADDLE_HEIGHT))
 }
